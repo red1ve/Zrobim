@@ -18,6 +18,8 @@ services:
         value: "true"
       - key: DemoCatalog__MasterPassword
         generateValue: true
+      - key: DemoCatalog__AdminPassword
+        generateValue: true
       - key: DemoPayment__Enabled
         value: "true"
       - key: Jwt__SigningKey
