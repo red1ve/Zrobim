@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: zrobim-demo
+    runtime: docker
+    region: frankfurt
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Staging
+      - key: Database__Url
+        fromDatabase:
+          name: zrobim-demo-db
+          property: connectionString
+      - key: Database__MigrateOnStartup
+        value: "true"
+      - key: DemoCatalog__SeedOnStartup
+        value: "true"
+      - key: DemoCatalog__MasterPassword
+        generateValue: true
+      - key: DemoPayment__Enabled
+        value: "true"
+      - key: Jwt__SigningKey
+        generateValue: true
+
+databases:
+  - name: zrobim-demo-db
+    region: frankfurt
+    plan: free
+    postgresMajorVersion: "17"
+    ipAllowList: []

@@ -1,9 +1,12 @@
 -- =============================================================================
--- Проверка ограничений схемы V001 на настоящем PostgreSQL.
--- Всё выполняется в одной транзакции и в конце откатывается (ROLLBACK):
--- база остаётся пустой.
+-- Проверка ограничений схемы на настоящем PostgreSQL.
+-- Всё создаётся во временной схеме zrobim_test внутри одной транзакции и в конце
+-- откатывается (ROLLBACK): настоящая схема public и данные не затрагиваются.
 --
+-- Обычно запускается через db/tests/run-tests.ps1 (проверяет схему из миграций EF Core).
+-- Вручную, против эталонного SQL:
 --   psql -X -q -v ON_ERROR_STOP=1 -h localhost -U zrobim -d zrobim_dev -f V001_constraints_test.sql
+-- Против другого скрипта схемы:  ... -v schema=путь/к/schema.sql
 --
 -- Каждая проверка печатает NOTICE "PASS ...". Первая же ошибка останавливает скрипт.
 -- Услуга в примерах стоит 100 BYN, залог 30 BYN.
@@ -13,7 +16,14 @@
 
 BEGIN;
 
+CREATE SCHEMA zrobim_test;
+SET LOCAL search_path = zrobim_test, public;
+
+\if :{?schema}
+\i :schema
+\else
 \ir ../migrations/V001__safe_deal_schema.sql
+\endif
 
 -- ---------- helpers ----------------------------------------------------------
 CREATE PROCEDURE pg_temp.expect_error(p_label text, p_sql text, p_state text)
@@ -140,7 +150,7 @@ CALL pg_temp.expect_error('bookings: CANCELLED requires cancelled_at',
 
 -- мастер не ответил вовремя → система отменяет заявку b1 (cancelled_by = NULL)
 CALL pg_temp.expect_rows('bookings: unanswered request PENDING → CANCELLED',
-  $q$UPDATE bookings SET status = 'CANCELLED', cancelled_at = now(), cancellation_reason = 'master did not respond'
+  $q$UPDATE bookings SET status = 'CANCELLED', cancelled_at = now(), cancellation_reason = 'MASTER_RESPONSE_TIMEOUT'
      WHERE id = '40000000-0000-0000-0000-000000000001' AND status = 'PENDING'$q$, 1);
 
 -- b2: client2 занимает освободившийся слот 10:00–11:00
@@ -152,6 +162,29 @@ CALL pg_temp.ok('bookings: cancelled request frees its slot');
 CALL pg_temp.expect_rows('bookings: master accepts PENDING → AWAITING_PAYMENT',
   $q$UPDATE bookings SET status = 'AWAITING_PAYMENT', accepted_at = now(), payment_deadline_at = now() + interval '6 hours'
      WHERE id = '40000000-0000-0000-0000-000000000002' AND status = 'PENDING'$q$, 1);
+
+-- ---------- booking notifications --------------------------------------------
+UPDATE bookings SET status = status WHERE id = '40000000-0000-0000-0000-000000000002';
+
+DO $$
+DECLARE
+    b1 constant uuid := '40000000-0000-0000-0000-000000000001';
+    b2 constant uuid := '40000000-0000-0000-0000-000000000002';
+    client1 constant uuid := '00000000-0000-0000-0000-000000000001';
+    client2 constant uuid := '00000000-0000-0000-0000-000000000002';
+    master1 constant uuid := '00000000-0000-0000-0000-000000000003';
+BEGIN
+    IF (SELECT count(*) FROM notifications WHERE booking_id = b2) <> 2
+       OR NOT EXISTS (SELECT FROM notifications WHERE booking_id = b2 AND user_id = master1 AND type = 'BOOKING_REQUESTED' AND NOT is_read)
+       OR NOT EXISTS (SELECT FROM notifications WHERE booking_id = b2 AND user_id = client2 AND type = 'BOOKING_ACCEPTED' AND NOT is_read) THEN
+        RAISE EXCEPTION 'Unexpected notification recipients or duplicates for booking acceptance';
+    END IF;
+    IF (SELECT count(*) FROM notifications WHERE booking_id = b1 AND type = 'BOOKING_RESPONSE_TIMEOUT'
+          AND user_id IN (client1, master1)) <> 2 THEN
+        RAISE EXCEPTION 'Both participants must receive a response timeout notification';
+    END IF;
+    RAISE NOTICE 'PASS  booking notifications: recipients, unread state and no duplicates on unchanged status';
+END $$;
 
 -- ---------- payments: «корзина» 20 минут, webhook -----------------------------
 INSERT INTO payments (id, booking_id, amount, provider, expires_at) VALUES
@@ -438,7 +471,7 @@ DECLARE
 BEGIN
     SELECT count(*) INTO bad
     FROM information_schema.columns
-    WHERE table_schema = 'public'
+    WHERE table_schema = current_schema()
       AND ((table_name = 'payments' AND column_name IN ('client_id', 'master_id', 'idempotency_key', 'held_at', 'subscription_id'))
         OR (table_name = 'payouts'  AND column_name = 'master_id')
         OR (table_name = 'subscription_payments' AND column_name = 'booking_id')

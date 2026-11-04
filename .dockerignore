@@ -1,0 +1,8 @@
+.git
+.env*
+.claude
+.agents
+.codex
+publish
+**/bin
+**/obj

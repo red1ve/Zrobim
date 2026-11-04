@@ -1,6 +1,7 @@
 // =============================================================================
 // Зробим — схема БД v2: безопасная сделка + подписки мастеров
-// Источник правды для constraints — db/migrations/V001__safe_deal_schema.sql
+// Источник правды для базы — миграции EF Core (src/Zrobim.Api/Data/Migrations);
+// читаемое SQL-описание тех же constraints — db/migrations/V001__safe_deal_schema.sql
 // (exclusion constraints, частичные индексы, CHECK и триггеры в DBML не выражаются,
 //  они перечислены в Note у таблиц).
 //
@@ -124,6 +125,7 @@ Table masters {
   description         text
   city                varchar(100)
   address             text
+  show_address_in_catalog boolean [not null, default: false, note: 'Мастер разрешил показывать адрес для услуг у мастера']
   latitude            decimal(10,7)
   longitude           decimal(10,7)
   verification_status verification_status [not null, default: 'PENDING']
@@ -385,6 +387,8 @@ Table favorites {
 }
 
 Table notifications {
+  Note: 'События заявки добавляются триггером notify_booking_change в транзакции изменения статуса.'
+
   id         uuid         [pk, default: `gen_random_uuid()`]
   user_id    uuid         [not null, ref: > users.id]
   type       varchar(50)  [not null]

@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0B0817">
+<title>ZROBIM</title>
+<style>
+  :root {
+    --bg: #0B0817;
+    --card: rgba(255,255,255,0.055);
+    --card-hover: rgba(168,85,247,0.14);
+    --border: rgba(255,255,255,0.09);
+    --border-strong: rgba(168,85,247,0.45);
+    --accent: #A855F7;
+    --accent-2: #7C3AED;
+    --accent-glow: rgba(124,58,237,0.45);
+    --text: #FFFFFF;
+    --text-dim: rgba(255,255,255,0.65);
+    --text-mute: rgba(255,255,255,0.4);
+    --green: #4ade80;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --nav-h: 66px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: none;
+  }
+
+  #bgCanvas {
+    position: fixed; inset: 0;
+    z-index: 0; pointer-events: none; opacity: 0.9;
+  }
+
+  .screen {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: none;
+    flex-direction: column;
+    padding: 24px;
+  }
+  .screen.active { display: flex; }
+  .screen.center { align-items: center; justify-content: center; }
+
+  h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.5px; }
+  h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 15px;
+    line-height: 1.45;
+    text-align: center;
+    margin-top: 10px;
+  }
+
+  .btn {
+    background: linear-gradient(135deg, var(--accent-2), var(--accent));
+    color: #fff;
+    border: none;
+    border-radius: 16px;
+    padding: 15px 32px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+    box-shadow: 0 8px 24px var(--accent-glow);
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-align: center;
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 12px 32px var(--accent-glow); }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn.ghost {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid var(--border);
+    box-shadow: none;
+    color: var(--text);
+  }
+  .btn.ghost:hover { background: rgba(255,255,255,0.12); }
+  .btn.danger {
+    background: rgba(248,113,113,0.14);
+    border: 1px solid rgba(248,113,113,0.4);
+    color: var(--red);
+    box-shadow: none;
+  }
+  .btn.full { width: 100%; }
+  .btn.sm { padding: 10px 16px; font-size: 13.5px; border-radius: 12px; }
+  .btn.icon {
+    width: 44px; height: 44px; padding: 0;
+    border-radius: 12px; min-width: 0;
+    font-size: 18px;
+  }
+  .btn.green {
+    background: linear-gradient(135deg, #16a34a, #22c55e);
+    box-shadow: 0 8px 24px rgba(34,197,94,0.35);
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 22px;
+    width: 100%;
+    max-width: 460px;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-dim);
+    margin-bottom: 7px;
+    padding-left: 2px;
+  }
+  .field input,
+  .field select,
+  .field textarea {
+    width: 100%;
+    padding: 13px 15px;
+    border-radius: 14px;
+    border: 1.5px solid var(--border);
+    background: rgba(0,0,0,0.3);
+    color: #fff;
+    font-size: 15px;
+    outline: none;
+    font-family: inherit;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .field input:focus,
+  .field select:focus,
+  .field textarea:focus { border-color: var(--accent); background: rgba(0,0,0,0.45); }
+  .field input::placeholder,
+  .field textarea::placeholder { color: rgba(255,255,255,0.28); }
+  .field select option { background: #1a1430; color: #fff; }
+  .field textarea { resize: vertical; min-height: 70px; }
+
+  .switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 4px;
+    gap: 12px;
+  }
+  .switch-row label { font-size: 15px; color: #fff; flex: 1; }
+
+  .toggle {
+    position: relative;
+    width: 46px; height: 26px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 26px;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.2s;
+  }
+  input[type="checkbox"] { display: none; }
+  input[type="checkbox"]:checked + .toggle { background: var(--accent); }
+  input[type="checkbox"]:checked + .toggle::after { transform: translateX(20px); }
+
+  .top-bar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 60px;
+    padding: 0 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 20;
+    background: rgba(11,8,23,0.78);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
+  }
+  .top-bar h2 { font-size: 17px; }
+  .top-bar .actions { display: flex; gap: 8px; }
+  .top-bar .placeholder { width: 44px; height: 44px; }
+
+  .app-page {
+    padding-top: 76px;
+    padding-bottom: calc(var(--nav-h) + 24px);
+    width: 100%;
+    max-width: 620px;
+    margin: 0 auto;
+    animation: fadeIn 0.25s ease;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: var(--nav-h);
+    z-index: 30;
+    background: rgba(11,8,23,0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border);
+    display: none;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .bottom-nav.show { display: flex; }
+  .nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    cursor: pointer;
+    color: var(--text-mute);
+    font-size: 11px;
+    font-weight: 600;
+    transition: color 0.15s;
+    position: relative;
+  }
+  .nav-item .ico { font-size: 21px; line-height: 1; transition: transform 0.2s; }
+  .nav-item.active { color: var(--accent); }
+  .nav-item.active .ico { transform: translateY(-2px); }
+  .nav-item .badge {
+    position: absolute;
+    top: 6px;
+    margin-left: 18px;
+    background: var(--red);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+  }
+
+  .greet { margin-bottom: 18px; }
+  .greet .hi { font-size: 14px; color: var(--text-mute); margin-bottom: 2px; }
+  .greet .who { font-size: 24px; font-weight: 800; letter-spacing: -0.4px; }
+
+  .section-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-mute);
+    font-weight: 700;
+    margin: 22px 4px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .section-title .link {
+    color: var(--accent);
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  .cat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  @media (min-width: 480px) {
+    .cat-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  .cat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 16px 14px;
+    cursor: pointer;
+    transition: transform 0.15s, background 0.15s, border-color 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .cat-card:hover {
+    transform: translateY(-3px);
+    background: var(--card-hover);
+    border-color: var(--border-strong);
+  }
+  .cat-card:active { transform: scale(0.97); }
+  .cat-card .emoji {
+    font-size: 26px;
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    background: rgba(168,85,247,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .cat-card .meta { min-width: 0; flex: 1; }
+  .cat-card .title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cat-card .count { font-size: 11.5px; color: var(--text-mute); }
+
+  .master-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 15px;
+    margin-bottom: 10px;
+    display: flex;
+    gap: 13px;
+    align-items: center;
+    cursor: pointer;
+    transition: transform 0.15s, background 0.15s, border-color 0.15s;
+  }
+  .master-card:hover {
+    background: var(--card-hover);
+    border-color: var(--border-strong);
+    transform: translateY(-2px);
+  }
+  .master-card:active { transform: scale(0.98); }
+  .avatar {
+    width: 48px; height: 48px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--accent-2), var(--accent));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+    box-shadow: 0 6px 18px rgba(124,58,237,0.35);
+  }
+  .master-info { flex: 1; min-width: 0; }
+  .master-info .name {
+    font-weight: 700;
+    font-size: 15.5px;
+    margin-bottom: 4px;
+  }
+  .master-info .line {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    margin-bottom: 2px;
+  }
+  .badge-license {
+    display: inline-block;
+    color: var(--green);
+    font-size: 11.5px;
+    margin-top: 4px;
+    font-weight: 600;
+  }
+  .arrow { color: var(--text-mute); font-size: 20px; }
+
+  .booking-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 14px;
+    padding: 13px 16px;
+    margin-bottom: 9px;
+    animation: fadeIn 0.25s ease;
+  }
+  .booking-item .time {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .booking-item .client {
+    font-size: 14.5px;
+    font-weight: 700;
+    margin-bottom: 3px;
+  }
+  .booking-item .info {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    margin-bottom: 2px;
+  }
+
+  .empty {
+    text-align: center;
+    color: var(--text-mute);
+    padding: 40px 20px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .empty .emoji {
+    font-size: 42px;
+    display: block;
+    margin-bottom: 12px;
+    opacity: 0.6;
+  }
+
+  .profile-head {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 0 22px;
+  }
+  .profile-avatar {
+    width: 88px; height: 88px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-2), var(--accent));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    margin-bottom: 14px;
+    box-shadow: 0 12px 36px rgba(124,58,237,0.5);
+  }
+  .profile-name { font-size: 22px; font-weight: 800; }
+  .profile-role {
+    font-size: 12px;
+    color: var(--accent);
+    padding: 4px 14px;
+    border-radius: 12px;
+    background: rgba(168,85,247,0.2);
+    margin-top: 8px;
+    font-weight: 600;
+  }
+  .profile-role.client { color: var(--green); background: rgba(74,222,128,0.15); }
+
+  .toast {
+    position: fixed;
+    bottom: calc(var(--nav-h) + 20px);
+    left: 50%;
+    transform: translateX(-50%) translateY(140px);
+    background: linear-gradient(135deg, var(--accent-2), var(--accent));
+    color: #fff;
+    padding: 13px 22px;
+    border-radius: 16px;
+    font-size: 14px;
+    font-weight: 600;
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 999;
+    box-shadow: 0 14px 40px rgba(0,0,0,0.6);
+    max-width: 88vw;
+    text-align: center;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.error { background: linear-gradient(135deg, #dc2626, #ef4444); }
+
+  .spinner {
+    display: inline-block;
+    width: 20px; height: 20px;
+    border: 2.5px solid rgba(255,255,255,0.2);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .hint {
+    font-size: 12.5px;
+    color: var(--text-mute);
+    text-align: center;
+    margin-top: 14px;
+    line-height: 1.5;
+  }
+
+  /* ==== CALENDAR ==== */
+  .cal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    padding: 0 4px;
+  }
+  .cal-title { font-size: 17px; font-weight: 700; }
+  .cal-nav {
+    display: flex; gap: 6px;
+  }
+  .cal-nav button {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid var(--border);
+    color: #fff;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  .cal-nav button:hover { background: rgba(255,255,255,0.14); }
+
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+  .cal-dow {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-mute);
+    font-weight: 700;
+    padding: 6px 0;
+    text-transform: uppercase;
+  }
+  .cal-day {
+    aspect-ratio: 1;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: default;
+    position: relative;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid transparent;
+    color: var(--text-dim);
+  }
+  .cal-day.empty { background: transparent; border: none; color: transparent; }
+  .cal-day.today {
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .cal-day.has-slots {
+    background: rgba(168,85,247,0.18);
+    color: #fff;
+    cursor: pointer;
+    border-color: rgba(168,85,247,0.35);
+  }
+  .cal-day.has-slots:hover {
+    background: rgba(168,85,247,0.32);
+  }
+  .cal-day.has-bookings {
+    background: rgba(74,222,128,0.15);
+    border-color: rgba(74,222,128,0.4);
+    cursor: pointer;
+    color: #fff;
+  }
+  .cal-day.has-bookings:hover {
+    background: rgba(74,222,128,0.28);
+  }
+  .cal-day .dot {
+    position: absolute;
+    bottom: 4px;
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--green);
+  }
+
+  .slot-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 14px;
+    border-radius: 12px;
+    background: rgba(168,85,247,0.18);
+    border: 1.5px solid rgba(168,85,247,0.4);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    margin: 4px 6px 4px 0;
+    transition: transform 0.15s, background 0.15s;
+  }
+  .slot-chip:hover {
+    background: rgba(168,85,247,0.35);
+    transform: translateY(-2px);
+  }
+  .slot-chip:active { transform: scale(0.96); }
+  .slot-chip.booked {
+    background: rgba(74,222,128,0.12);
+    border-color: rgba(74,222,128,0.4);
+    color: var(--green);
+    cursor: default;
+  }
+  .slot-chip.taken {
+    background: rgba(255,255,255,0.05);
+    border-color: var(--border);
+    color: var(--text-mute);
+    cursor: default;
+    text-decoration: line-through;
+    opacity: 0.6;
+  }
+
+  .day-panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    margin-top: 14px;
+  }
+  .day-panel h3 { font-size: 15px; margin-bottom: 12px; }
+
+  .divider {
+    display: flex; align-items: center; gap: 10px;
+    margin: 16px 0; color: var(--text-mute); font-size: 12px;
+  }
+  .divider::before, .divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+  .screen.center > .btn { max-width: 340px; }
+  .screen.center > form { margin-top: 20px; }
+  .app-page { padding-inline: 16px; }
+  button.nav-item { border: 0; background: transparent; font-family: inherit; }
+  .catalog-back { margin-bottom: 12px; }
+  .catalog-list .cat-card, .catalog-list .master-card {
+    width: 100%; text-align: left; color: var(--text); font: inherit;
+  }
+  .catalog-list .name, .catalog-list .line { display: block; }
+  .catalog-name { font-weight: 700; overflow-wrap: anywhere; }
+  .catalog-description { color: var(--text-dim); margin: 0 0 12px; overflow-wrap: anywhere; }
+  .catalog-details { max-width: 100%; }
+  .catalog-details p + p { margin-top: 10px; }
+  .catalog-slot-day { margin-bottom: 16px; }
+  .catalog-slots { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; }
+  .catalog-slot {
+    border: 1px solid var(--border);
+    background: var(--card);
+    border-radius: 12px;
+    padding: 8px 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .catalog-slot { display: inline-block; }
+  button.catalog-slot { font: inherit; color: var(--text); cursor: pointer; }
+  button.catalog-slot:hover { border-color: var(--accent); }
+  .booking-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .booking-item .info { overflow-wrap: anywhere; }
+  .nav-item[hidden] { display: none; }
+  .cabinet-card { max-width: 100%; margin-bottom: 12px; }
+  .cabinet-card summary { cursor: pointer; }
+  .cabinet-status {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 16px;
+  }
+  .cabinet-card summary + .cabinet-form, .cabinet-block + .cabinet-form { margin-top: 14px; }
+  .cabinet-field { display: block; }
+  .cabinet-field > span { display: block; margin-bottom: 6px; color: var(--text-dim); }
+  .cabinet-check { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .cabinet-check input[type="checkbox"] { display: inline-block; accent-color: var(--accent); }
+  .cabinet-day { border-top: 1px solid var(--border); padding-top: 10px; }
+  .cabinet-times { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .cabinet-times input { min-width: 0; }
+  .cabinet-block { padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .master-profile { margin-bottom: 16px; }
+  .profile-text { white-space: pre-wrap; }
+  .catalog-search { max-width: 100%; margin-bottom: 16px; }
+  .catalog-search[hidden] { display: none; }
+  .catalog-search-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .catalog-search-page { color: var(--text-dim); font-size: 14px; }
+  .nav-item .badge[hidden] { display: none; }
+  .notification-unread, .booking-highlighted { border-color: var(--accent); }
+  .notification-open { margin-top: 8px; }
+  #favorites-open[hidden], #guest-login[hidden], #catalog-greeting[hidden] { display: none; }
+  .favorite-card { margin-bottom: 10px; }
+  .favorite-action { margin: 4px 0; }
+  .favorite-card .favorite-action { margin-inline-start: 6px; }
+  .calendar-launch, .calendar-navigation { margin-bottom: 14px; }
+  .calendar-day { width: 100%; }
+  .calendar-today { border-color: var(--accent); }
+  .calendar-entry { border-top: 1px solid var(--border); padding: 10px 0; }
+  .calendar-entry .catalog-description { margin-bottom: 4px; }
+  .admin-cabinet-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .admin-cabinet-tabs[hidden] { display: none; }
+  .category-service-count { margin-top: 10px; }
+  .demo-payment-amount { font-size: 24px; font-weight: 800; margin: 8px 0; }
+  .demo-payment-methods { border: 0; min-width: 0; margin-bottom: 14px; }
+  .demo-payment-choice {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px; margin-top: 8px; cursor: pointer;
+  }
+  .demo-payment-choice input { accent-color: var(--accent); }
+  .demo-payment [role="status"]:empty { display: none; }
+  @media (max-width: 360px) {
+    .top-bar { padding-inline: 10px; gap: 8px; }
+    .top-bar h2 { font-size: 15px; }
+    .nav-item { min-width: 0; font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="bgCanvas" aria-hidden="true"></canvas>
+
+<div class="screen center" id="screen-splash">
+  <h1>ZRO<span style="color:var(--accent)">BIM</span></h1>
+  <p class="subtitle" style="margin:14px 0 50px">Найдите мастера или станьте им</p>
+  <button class="btn full" type="button" data-screen="login">Войти</button>
+  <button class="btn full ghost" type="button" data-screen="register" style="margin-top:12px">Регистрация</button>
+  <button class="btn full ghost" type="button" data-screen="home" style="margin-top:12px">Посмотреть каталог</button>
+</div>
+
+<div class="screen center" id="screen-login">
+  <h1>Вход</h1>
+  <p class="subtitle">Войдите по email и паролю</p>
+  <form class="card" id="login-form">
+    <div class="field">
+      <label for="login-email">Email</label>
+      <input id="login-email" name="email" type="email" autocomplete="username" maxlength="255" required>
+    </div>
+    <div class="field">
+      <label for="login-password">Пароль</label>
+      <input id="login-password" name="password" type="password" autocomplete="current-password" maxlength="128" required>
+    </div>
+    <button class="btn full" type="submit">Войти</button>
+    <button class="btn full ghost" type="button" data-screen="register" style="margin-top:12px">Создать аккаунт</button>
+  </form>
+</div>
+
+<div class="screen center" id="screen-register">
+  <h1>Регистрация</h1>
+  <p class="subtitle">Создайте аккаунт клиента или мастера</p>
+  <form class="card" id="register-form">
+    <div class="field">
+      <label for="register-first-name">Имя</label>
+      <input id="register-first-name" name="firstName" autocomplete="given-name" maxlength="100" required>
+    </div>
+    <div class="field">
+      <label for="register-last-name">Фамилия (необязательно)</label>
+      <input id="register-last-name" name="lastName" autocomplete="family-name" maxlength="100">
+    </div>
+    <div class="field">
+      <label for="register-email">Email</label>
+      <input id="register-email" name="email" type="email" autocomplete="username" maxlength="255" required>
+    </div>
+    <div class="field">
+      <label for="register-phone">Телефон (необязательно)</label>
+      <input id="register-phone" name="phone" type="tel" autocomplete="tel" maxlength="30">
+    </div>
+    <div class="field">
+      <label for="register-password">Пароль (от 8 символов)</label>
+      <input id="register-password" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+    </div>
+    <div class="field">
+      <label for="register-role">Роль</label>
+      <select id="register-role" name="role">
+        <option value="CLIENT">Клиент</option>
+        <option value="MASTER">Мастер</option>
+      </select>
+    </div>
+    <button class="btn full" type="submit">Создать аккаунт</button>
+    <button class="btn full ghost" type="button" data-screen="login" style="margin-top:12px">Уже есть аккаунт</button>
+  </form>
+</div>
+
+<div class="screen" id="screen-home" style="padding:0">
+  <div class="top-bar">
+    <h2>Услуги</h2>
+    <div class="actions">
+      <button class="btn sm ghost" type="button" id="guest-login" data-screen="login" hidden>Войти</button>
+      <button class="btn sm ghost" type="button" id="favorites-open" hidden>☆ Избранное</button>
+    </div>
+  </div>
+  <div class="app-page">
+    <div class="greet" id="catalog-greeting">
+      <div class="hi">Добро пожаловать,</div>
+      <div class="who" id="greet-name"></div>
+    </div>
+    <form class="card catalog-search" id="catalog-search" role="search" hidden>
+      <div class="field">
+        <label for="catalog-query">Услуга, категория или мастер</label>
+        <input id="catalog-query" name="q" type="search" placeholder="Например, уборка" maxlength="100">
+      </div>
+      <div class="field">
+        <label for="catalog-city">Город</label>
+        <input id="catalog-city" name="city" type="text" list="catalog-cities" placeholder="Все города" maxlength="100">
+        <datalist id="catalog-cities"></datalist>
+      </div>
+      <div class="catalog-search-actions">
+        <button class="btn sm" type="submit">Найти</button>
+        <button class="btn sm ghost" type="button" id="catalog-search-reset">Сбросить</button>
+      </div>
+    </form>
+    <section id="catalog-content" aria-label="Каталог услуг"></section>
+  </div>
+</div>
+
+<div class="screen" id="screen-bookings" style="padding:0">
+  <div class="top-bar">
+    <h2 id="bookings-title">Мои записи</h2>
+    <div class="actions">
+      <button class="btn sm ghost" type="button" id="bookings-refresh">Обновить</button>
+    </div>
+  </div>
+  <div class="app-page">
+    <section id="bookings-content" aria-label="Мои заявки"></section>
+  </div>
+</div>
+
+<div class="screen" id="screen-payment" style="padding:0">
+  <div class="top-bar">
+    <h2 id="payment-title">Оплата</h2>
+    <div class="actions">
+      <button class="btn sm ghost" type="button" data-screen="bookings">К записям</button>
+    </div>
+  </div>
+  <div class="app-page">
+    <section id="payment-content" aria-label="Демонстрационная оплата"></section>
+  </div>
+</div>
+
+<div class="screen" id="screen-profile" style="padding:0">
+  <div class="top-bar">
+    <h2>Профиль</h2>
+    <div class="actions">
+      <button class="btn sm ghost" type="button" id="logout">Выйти</button>
+    </div>
+  </div>
+  <div class="app-page">
+    <div class="profile-head">
+      <div class="profile-avatar" aria-hidden="true">👤</div>
+      <div class="profile-name" id="profile-name"></div>
+      <div class="profile-role" id="profile-role"></div>
+    </div>
+    <div class="card" style="max-width:100%">
+      <div class="field"><strong>Email</strong><div id="profile-email"></div></div>
+      <div class="field"><strong>Телефон</strong><div id="profile-phone"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="screen-cabinet" style="padding:0">
+  <div class="top-bar">
+    <h2 id="cabinet-title">Кабинет</h2>
+    <div class="actions">
+      <button class="btn sm ghost" type="button" id="cabinet-refresh">Обновить</button>
+    </div>
+  </div>
+  <div class="app-page">
+    <nav class="admin-cabinet-tabs" id="admin-cabinet-tabs" aria-label="Разделы администратора" hidden>
+      <button class="btn sm" type="button" data-section="masters">Мастера</button>
+      <button class="btn sm ghost" type="button" data-section="categories">Категории</button>
+    </nav>
+    <section id="cabinet-content" aria-label="Кабинет"></section>
+  </div>
+</div>
+
+<div class="screen" id="screen-calendar" style="padding:0">
+  <div class="top-bar">
+    <h2>Календарь</h2>
+    <div class="actions">
+      <button class="btn sm ghost" type="button" data-screen="cabinet" aria-label="Назад в кабинет">←</button>
+      <button class="btn sm ghost" type="button" id="calendar-refresh">Обновить</button>
+    </div>
+  </div>
+  <div class="app-page">
+    <section id="calendar-content" aria-label="Календарь мастера"></section>
+  </div>
+</div>
+
+<div class="screen" id="screen-notifications" style="padding:0">
+  <div class="top-bar">
+    <h2>Уведомления</h2>
+    <div class="actions">
+      <button class="btn sm ghost" type="button" id="notifications-refresh">Обновить</button>
+    </div>
+  </div>
+  <div class="app-page">
+    <section id="notifications-content" aria-label="Уведомления"></section>
+  </div>
+</div>
+
+<nav class="bottom-nav" id="bottom-nav" aria-label="Разделы приложения">
+  <button class="nav-item" type="button" data-screen="home"><span class="ico">🏠</span>Услуги</button>
+  <button class="nav-item" type="button" data-screen="bookings"><span class="ico">📋</span>Записи</button>
+  <button class="nav-item" type="button" data-screen="cabinet" id="cabinet-nav" hidden><span class="ico">⚙️</span>Кабинет</button>
+  <button class="nav-item" type="button" data-screen="notifications">
+    <span class="ico">🔔</span>Уведомления
+    <span class="badge" id="notification-badge" aria-label="Непрочитанные уведомления" hidden></span>
+  </button>
+  <button class="nav-item" type="button" data-screen="profile"><span class="ico">👤</span>Профиль</button>
+</nav>
+
+<div class="toast" id="toast" role="status"></div>
+<script src="/notifications.js"></script>
+<script src="/favorites.js"></script>
+<script src="/demo-payment.js"></script>
+<script src="/app.js"></script>
+<script src="/cabinet.js"></script>
+</body>
+</html>

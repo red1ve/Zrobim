@@ -1,0 +1,46 @@
+@Zrobim.Api_HostAddress = http://localhost:5262
+
+### Is the API up and can it reach PostgreSQL?
+GET {{Zrobim.Api_HostAddress}}/health
+
+### Register a client
+POST {{Zrobim.Api_HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "anya@example.com",
+  "password": "Test-pass-123",
+  "firstName": "Аня",
+  "lastName": "Ковальчук",
+  "role": "CLIENT"
+}
+
+### Register a master (gets a PENDING master profile)
+POST {{Zrobim.Api_HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "olya@example.com",
+  "password": "Test-pass-123",
+  "firstName": "Оля",
+  "phone": "+375291234567",
+  "role": "MASTER"
+}
+
+### Sign in — copy "accessToken" from the response into @token below
+POST {{Zrobim.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "anya@example.com",
+  "password": "Test-pass-123"
+}
+
+###
+@token = paste-access-token-here
+
+### The signed-in user
+GET {{Zrobim.Api_HostAddress}}/api/me
+Authorization: Bearer {{token}}
+
+###
