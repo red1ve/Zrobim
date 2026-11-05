@@ -82,6 +82,8 @@ INSERT INTO services (id, master_id, category_id, name, price, duration_minutes,
   ('30000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000001', 'Маникюр (М2)',     80.00, 60, 'MASTER_PLACE'),
   ('30000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'Маникюр на дому', 120.00, 60, 'CLIENT_PLACE');
 
+-- Replace migration seed data with deterministic test plans in this throw-away schema.
+DELETE FROM subscription_plans;
 INSERT INTO subscription_plans (id, code, name, price_monthly, is_promoted) VALUES
   ('80000000-0000-0000-0000-000000000001', 'BASIC', 'Basic', 15.00, false),
   ('80000000-0000-0000-0000-000000000002', 'PLUS',  'Plus',  30.00, true);

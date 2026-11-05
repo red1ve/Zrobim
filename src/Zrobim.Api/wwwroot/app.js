@@ -90,7 +90,8 @@ function showScreen(screen, bookingId) {
   document.getElementById('guest-login').hidden = Boolean(session);
   document.getElementById('catalog-greeting').hidden = !session;
   document.querySelectorAll('.nav-item').forEach(button => {
-    const activeScreen = screen === 'calendar' ? 'cabinet' : screen === 'payment' ? 'bookings' : screen;
+    const activeScreen = screen === 'calendar' ? 'cabinet' : screen === 'payment'
+      ? (currentRole === 'MASTER' ? 'cabinet' : 'bookings') : screen;
     const active = button.dataset.screen === activeScreen;
     button.classList.toggle('active', active);
     if (active) button.setAttribute('aria-current', 'page');
@@ -155,6 +156,7 @@ function renderUser(user) {
   document.getElementById('profile-role').textContent = roleNames[user.role] ?? user.role;
   document.getElementById('profile-email').textContent = user.email;
   document.getElementById('profile-phone').textContent = user.phone || '—';
+  document.getElementById('profile-subscription').hidden = currentRole !== 'MASTER';
 }
 
 function logout() {

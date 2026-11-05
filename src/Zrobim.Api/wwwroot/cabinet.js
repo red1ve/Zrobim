@@ -34,6 +34,7 @@ function loadCabinet() {
 }
 
 function renderMasterCabinet(content, data) {
+  content.append(renderSubscriptionCard(data.subscription));
   content.append(catalogElement('p', 'cabinet-status', cabinetStatus[data.verificationStatus]));
   content.append(catalogButton('btn sm calendar-launch', 'Календарь на неделю', () => showScreen('calendar')));
   content.append(catalogElement('h3', 'section-title', 'Анкета мастера'));

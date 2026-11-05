@@ -7,13 +7,14 @@ using Zrobim.Api.Bookings;
 using Zrobim.Api.Catalog;
 using Zrobim.Api.Data;
 using Zrobim.Api.Schedule;
+using Zrobim.Api.Subscriptions;
 
 namespace Zrobim.Api.Masters;
 
 [ApiController]
 [Authorize(Roles = Roles.Master)]
 [Route("api/master")]
-public class MasterCabinetController(ZrobimDbContext db, TimeProvider time) : ControllerBase
+public class MasterCabinetController(ZrobimDbContext db, TimeProvider time, MasterSubscriptionService subscriptions) : ControllerBase
 {
     [HttpGet("cabinet")]
     public async Task<ActionResult<MasterCabinetResponse>> GetCabinet(CancellationToken ct)
@@ -37,7 +38,8 @@ public class MasterCabinetController(ZrobimDbContext db, TimeProvider time) : Co
             .Select(b => new TimeBlockResponse(b.Id, b.StartAt, b.EndAt, b.Reason)).ToListAsync(ct);
 
         var profile = new MasterProfileResponse(master.City, master.Description, master.Address, master.ShowAddressInCatalog);
-        return new MasterCabinetResponse(master.VerificationStatus, categories, services, hours, blocks, profile);
+        return new MasterCabinetResponse(master.VerificationStatus, categories, services, hours, blocks, profile,
+            await subscriptions.GetAsync(master.Id, ct));
     }
 
     [HttpPut("profile")]
@@ -236,7 +238,7 @@ public sealed record TimeBlockResponse(Guid Id, DateTime StartAt, DateTime EndAt
 
 public sealed record MasterCabinetResponse(VerificationStatus VerificationStatus, List<CatalogCategory> Categories,
     List<MasterServiceResponse> Services, List<WorkdayInput> WorkingHours, List<TimeBlockResponse> TimeBlocks,
-    MasterProfileResponse Profile);
+    MasterProfileResponse Profile, MasterSubscriptionResponse Subscription);
 
 public sealed record SaveMasterProfileRequest(
     [MaxLength(100, ErrorMessage = "Город должен быть не длиннее 100 символов.")] string? City,

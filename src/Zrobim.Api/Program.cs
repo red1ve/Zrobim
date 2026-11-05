@@ -7,6 +7,7 @@ using Zrobim.Api.Data;
 using Zrobim.Api.Infrastructure;
 using Zrobim.Api.Payments;
 using Zrobim.Api.Schedule;
+using Zrobim.Api.Subscriptions;
 
 // local secrets (connection string, JWT signing key) from C:\Zrobim\.env; real environment variables win
 DotEnv.Load();
@@ -27,6 +28,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddZrobimDatabase(builder.Configuration);
 builder.Services.AddZrobimAuth(builder.Configuration);
 builder.Services.AddScoped<AvailabilityService>();
+builder.Services.AddScoped<MasterSubscriptionService>();
 builder.Services.AddHostedService<BookingExpirationWorker>();
 builder.Services.Configure<DemoPaymentOptions>(builder.Configuration.GetSection("DemoPayment"));
 builder.Services.AddHealthChecks().AddDbContextCheck<ZrobimDbContext>("database");

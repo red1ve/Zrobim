@@ -46,6 +46,33 @@ async function main() {
   const mt = master.accessToken;
   const masterId = master.user.masterId;
 
+  const subscriptionPath = '/api/master/subscription';
+  const subscribe = subscriptionPath + '/demo-payment';
+  await expect(subscriptionPath, 401);
+  await expect(subscribe, 401, { body: { method: 'CARD' } });
+  for (const token of [at, first.accessToken]) {
+    await expect(subscriptionPath, 403, { token });
+    await expect(subscribe, 403, { token, body: { method: 'CARD' } });
+  }
+  const inactive = await expect(subscriptionPath, 200, { token: mt });
+  assert.equal(inactive.priceMonthly, 15);
+  assert.equal(inactive.isActive, false);
+  assert.equal(inactive.expiresAt, null);
+  assert.equal(inactive.canPayDemo, true);
+  await expect(subscribe, 400, { token: mt, body: { method: 'CASH' } });
+  const purchased = await Promise.all(['CARD', 'ERIP'].map(method =>
+    expect(subscribe, 200, { token: mt, body: { method } })));
+  assert.deepEqual(purchased[0], purchased[1], 'Concurrent payments must grant one period');
+  const active = purchased[0];
+  assert.equal(active.isActive, true);
+  assert.equal(active.canPayDemo, false);
+  assert.ok(Date.parse(active.expiresAt) - Date.parse(active.startsAt) >= 28 * 86400000);
+  assert.ok(Date.parse(active.expiresAt) - Date.parse(active.startsAt) <= 31 * 86400000);
+  assert.deepEqual(await expect(subscribe, 200, { token: mt, body: { method: 'CARD' } }), active);
+  assert.deepEqual((await expect('/api/master/cabinet', 200, { token: mt })).subscription, active);
+  assert.equal((await expect(subscriptionPath, 200, { token: mt })).isActive, true);
+  console.log('PASS: monthly subscription, payment validation, ownership, concurrency and retry');
+
   await expect('/api/admin/categories', 401);
   await expect('/api/admin/categories', 403, { token: mt });
   const category = await expect('/api/admin/categories', 201, {
