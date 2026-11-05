@@ -698,12 +698,45 @@
     .top-bar h2 { font-size: 15px; }
     .nav-item { min-width: 0; font-size: 10px; }
   }
+
+  #restore-retry[hidden] { display: none; }
+  .discovery-panel { margin-bottom: 22px; }
+  .city-picker { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 14px 16px; }
+  .city-picker label { font-weight: 700; color: var(--text); }
+  .city-picker select { font-weight: 600; }
+  #catalog-city-status:empty { display: none; }
+  #catalog-city-status { margin: 8px 0 0; font-size: 13px; }
+  .catalog-hero { position: relative; overflow: hidden; padding: 24px 22px; margin: 16px 0 20px;
+    border-radius: 24px; border: 1px solid rgba(168,85,247,0.3);
+    background: radial-gradient(circle at 100% 0%, rgba(192,132,252,0.28), transparent 55%),
+      linear-gradient(135deg, rgba(109,40,217,0.35), rgba(67,56,202,0.15)); }
+  .catalog-hero h2 { font-size: clamp(25px, 5vw, 32px); line-height: 1.15; margin-bottom: 12px; position: relative; }
+  .catalog-hero p { position: relative; max-width: 350px; color: var(--text-dim); font-size: 14px; line-height: 1.6; }
+  .catalog-hero .greet { margin-bottom: 12px; font-size: 14px; color: var(--text-dim); }
+  .catalog-hero .hi { display: inline; }
+  .hero-decoration { position: absolute; right: 18px; top: 18px; font-size: 72px; color: rgba(216,180,254,0.18); }
+  .catalog-search-row { display: flex; gap: 8px; align-items: stretch; }
+  .catalog-search-row input { min-width: 0; flex: 1; }
+  .catalog-search-row .btn { flex-shrink: 0; padding-inline: 16px; }
+  .catalog-search-field { margin-bottom: 8px; }
+  .category-tile { flex-direction: column; align-items: flex-start; text-align: left; min-height: 178px; gap: 9px;
+    background: linear-gradient(145deg, rgba(139,92,246,0.13), var(--card)); }
+  .category-tile .catalog-name { line-height: 1.3; }
+  .category-emoji { display: grid; place-items: center; width: 46px; height: 46px; font-size: 26px;
+    border-radius: 14px; background: rgba(255,255,255,0.06); }
+  .category-description { font-size: 12px; line-height: 1.5; color: var(--text-dim); }
+  .category-count { font-size: 11px; color: var(--text-mute); margin-top: auto; }
+  .category-cleaning, .category-pets { background: linear-gradient(145deg, rgba(16,185,129,0.16), var(--card)); }
+  .category-nails, .category-beauty { background: linear-gradient(145deg, rgba(244,114,182,0.17), var(--card)); }
+  .category-home, .category-furniture { background: linear-gradient(145deg, rgba(251,191,36,0.12), var(--card)); }
+  @media (prefers-reduced-motion: reduce) { #bgCanvas { display: none; } }
 </style>
 </head>
 <body>
 <canvas id="bgCanvas" aria-hidden="true"></canvas>
 
 <div class="screen center" id="screen-splash">
+  <button class="btn full ghost" id="restore-retry" type="button" hidden>Повторить вход</button>
   <h1>ZRO<span style="color:var(--accent)">BIM</span></h1>
   <p class="subtitle" style="margin:14px 0 50px">Найдите мастера или станьте им</p>
   <button class="btn full" type="button" data-screen="login">Войти</button>
@@ -773,24 +806,30 @@
     </div>
   </div>
   <div class="app-page">
-    <div class="greet" id="catalog-greeting">
-      <div class="hi">Добро пожаловать,</div>
-      <div class="who" id="greet-name"></div>
-    </div>
-    <form class="card catalog-search" id="catalog-search" role="search" hidden>
-      <div class="field">
-        <label for="catalog-query">Услуга, категория или мастер</label>
-        <input id="catalog-query" name="q" type="search" placeholder="Например, уборка" maxlength="100">
+    <form class="catalog-search discovery-panel" id="catalog-search" role="search" hidden>
+      <div class="field city-picker">
+        <label for="catalog-city">📍 Ваш город</label>
+        <select id="catalog-city" name="city">
+          <option value="">Все города</option>
+        </select>
+        <p id="catalog-city-status" class="catalog-description" role="status"></p>
       </div>
-      <div class="field">
-        <label for="catalog-city">Город</label>
-        <input id="catalog-city" name="city" type="text" list="catalog-cities" placeholder="Все города" maxlength="100">
-        <datalist id="catalog-cities"></datalist>
+      <div class="catalog-hero">
+        <div class="greet" id="catalog-greeting">
+          <span class="hi">Здравствуйте, </span><span id="greet-name"></span>
+        </div>
+        <h2>Дела по дому?<br>Найдём мастера.</h2>
+        <p>Уборка, красота, ремонт и забота о близких — выберите, чем помочь сегодня.</p>
+        <span class="hero-decoration" aria-hidden="true">✦</span>
       </div>
-      <div class="catalog-search-actions">
-        <button class="btn sm" type="submit">Найти</button>
-        <button class="btn sm ghost" type="button" id="catalog-search-reset">Сбросить</button>
+      <div class="field catalog-search-field">
+        <label for="catalog-query">Найти услугу или мастера</label>
+        <div class="catalog-search-row">
+          <input id="catalog-query" name="q" type="search" placeholder="Например, маникюр или сборка шкафа" maxlength="100">
+          <button class="btn sm" type="submit">Найти</button>
+        </div>
       </div>
+      <button class="btn sm ghost" type="button" id="catalog-search-reset">Все категории</button>
     </form>
     <section id="catalog-content" aria-label="Каталог услуг"></section>
   </div>

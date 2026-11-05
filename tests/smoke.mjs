@@ -69,6 +69,14 @@ async function main() {
   const [profile] = await expect(categoryRoute, 200);
   assert.equal(profile.id, masterId);
   assert.equal(profile.publicAddress, null);
+  const minsk = new URLSearchParams({ city: 'Минск' });
+  const brest = new URLSearchParams({ city: 'Брест' });
+  const localCategory = (await expect('/api/catalog/categories?' + minsk, 200)).find(row => row.id === category.id);
+  assert.equal(localCategory.masterCount, 1);
+  assert.equal(localCategory.serviceCount, 1);
+  assert.ok(!(await expect('/api/catalog/categories?' + brest, 200)).some(row => row.id === category.id));
+  assert.deepEqual(await expect(categoryRoute + '?' + brest, 200), []);
+
   const query = new URLSearchParams({ q: prefix + ' уборка', city: 'мИнСк' });
   assert.ok((await expect('/api/catalog/search?' + query, 200)).items.some(item => item.service.id === service.id));
 

@@ -53,6 +53,28 @@ function animateBg() {
 animateBg();
 
 const sessionKey = 'zrobim.session';
+const cityPreferenceKey = 'zrobim.city';
+let selectedCity = readPreference(cityPreferenceKey) ?? '';
+
+function readPreference(key) {
+  try { return localStorage.getItem(key); }
+  catch { return null; }
+}
+
+function savePreference(key, value) {
+  try {
+    if (value === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, value);
+  } catch {
+    // The current session also works when browser storage is unavailable.
+  }
+}
+
+function clearSavedSession() {
+  savePreference(sessionKey, null);
+  try { sessionStorage.removeItem(sessionKey); } catch {}
+}
+
 const appScreens = ['home', 'bookings', 'profile', 'cabinet', 'notifications', 'calendar', 'payment'];
 const roleNames = { CLIENT: 'Клиент', MASTER: 'Мастер', ADMIN: 'Администратор' };
 let session = null;
@@ -77,7 +99,7 @@ function showScreen(screen, bookingId) {
   window.scrollTo(0, 0);
   screenRequest?.abort();
   if (screen === 'home') {
-    searchForm.reset();
+    document.getElementById('catalog-query').value = '';
     showCategories();
   }
   if (screen === 'bookings') loadBookings(bookingId);
@@ -137,11 +159,11 @@ function renderUser(user) {
 
 function logout() {
   currentRole = null;
+  session = null;
   document.getElementById('favorites-open').hidden = true;
   refreshNotificationBadge();
   document.getElementById('cabinet-nav').hidden = true;
-  session = null;
-  sessionStorage.removeItem(sessionKey);
+  clearSavedSession();
   document.getElementById('login-form').reset();
   document.getElementById('register-form').reset();
   showScreen('login');
@@ -188,7 +210,7 @@ async function submitAuth(event) {
     const result = await apiRequest(isRegistration ? '/api/auth/register' : '/api/auth/login', { body });
     const { accessToken, expiresAt, user } = result;
     session = { accessToken, expiresAt };
-    sessionStorage.setItem(sessionKey, JSON.stringify(session));
+    savePreference(sessionKey, JSON.stringify(session));
     form.reset();
     document.getElementById('toast').classList.remove('show');
     renderUser(user);
@@ -267,31 +289,68 @@ async function loadScreenContent(path, content, render, token) {
   }
 }
 
+const categoryArtwork = {
+  'Уборка и клининг': ['🧹', 'Порядок и свежесть дома', 'cleaning'],
+  'Дом и ремонт': ['🛠️', 'Помощь с домашними задачами', 'home'],
+  'Маникюр и педикюр': ['💅', 'Уход и любимые оттенки', 'nails'],
+  'Красота и уход': ['✨', 'Стрижки, брови и уход', 'beauty'],
+  'Сборка мебели': ['🪑', 'Новая мебель без хлопот', 'furniture'],
+  'Ремонт техники': ['💻', 'Помощь с устройствами', 'tech'],
+  'Уход за питомцами': ['🐾', 'Забота о ваших любимцах', 'pets'],
+  'Обучение': ['📚', 'Новые знания и навыки', 'learning']
+};
+
+function formatCatalogCount(count, noun) {
+  const forms = noun === 'master'
+    ? { one: 'мастер', few: 'мастера', many: 'мастеров', other: 'мастера' }
+    : { one: 'услуга', few: 'услуги', many: 'услуг', other: 'услуги' };
+  return count + ' ' + forms[new Intl.PluralRules('ru').select(count)];
+}
+
 function showCategories() {
   loadSearchCities();
-  return loadCatalog('/api/catalog/categories', 'Категории', 'Категорий пока нет.', null,
-    (content, categories) => {
-      const grid = catalogElement('div', 'cat-grid');
-      for (const category of categories) {
-        const button = catalogButton('cat-card', '', () => showMasters(category));
-        button.append(catalogElement('span', 'catalog-name', category.name));
-        grid.append(button);
-      }
-      content.append(grid);
-    }, true);
+  const params = new URLSearchParams();
+  if (selectedCity) params.set('city', selectedCity);
+  const path = '/api/catalog/categories' + (params.size ? '?' + params : '');
+  const empty = selectedCity ? 'В этом городе пока нет доступных мастеров. Выберите другой город.' : 'Категорий пока нет.';
+  return loadCatalog(path, 'Категории', empty, null, (content, categories) => {
+    const grid = catalogElement('div', 'cat-grid');
+    for (const category of categories) {
+      const [emoji, description, theme] = categoryArtwork[category.name] ?? ['✦', 'Найдите своего специалиста', 'home'];
+      const button = catalogButton('cat-card category-tile category-' + theme, '', () => showMasters(category));
+      button.append(catalogElement('span', 'category-emoji', emoji));
+      button.append(catalogElement('span', 'catalog-name', category.name));
+      button.append(catalogElement('span', 'category-description', description));
+      const counts = formatCatalogCount(category.masterCount, 'master') + ' · ' +
+        formatCatalogCount(category.serviceCount, 'service');
+      button.append(catalogElement('span', 'category-count', counts));
+      grid.append(button);
+    }
+    content.append(grid);
+  }, true);
 }
 
 async function loadSearchCities() {
-  try {
-    const cities = await apiRequest('/api/catalog/cities');
-    const suggestions = document.getElementById('catalog-cities');
-    suggestions.replaceChildren(...cities.map(city => {
-      const option = catalogElement('option', '');
+  const select = document.getElementById('catalog-city');
+  const status = document.getElementById('catalog-city-status');
+  const renderOptions = cities => {
+    const names = selectedCity && !cities.includes(selectedCity) ? [selectedCity, ...cities] : cities;
+    const all = catalogElement('option', '', 'Все города');
+    all.value = '';
+    select.replaceChildren(all, ...names.map(city => {
+      const option = catalogElement('option', '', city);
       option.value = city;
       return option;
     }));
+    select.value = selectedCity;
+  };
+  if (selectedCity && !select.value) renderOptions([]);
+  try {
+    const cities = await apiRequest('/api/catalog/cities');
+    renderOptions(cities);
+    status.textContent = '';
   } catch {
-    // Suggestions are optional; the city field also accepts typed input.
+    status.textContent = 'Не удалось обновить список городов. Попробуйте обновить страницу.';
   }
 }
 
@@ -329,7 +388,10 @@ function showSearchResults(filters, page = 1) {
 
 
 function showMasters(category) {
-  return loadCatalog('/api/catalog/categories/' + category.id + '/masters',
+  const params = new URLSearchParams();
+  if (selectedCity) params.set('city', selectedCity);
+  const path = '/api/catalog/categories/' + category.id + '/masters' + (params.size ? '?' + params : '');
+  return loadCatalog(path,
     category.name, 'В этой категории пока нет мастеров.', showCategories, (content, masters) => {
       for (const master of masters) {
         const name = [master.firstName, master.lastName].filter(Boolean).join(' ');
@@ -654,21 +716,37 @@ async function runBookingAction(path, actions) {
 }
 
 async function restoreSession() {
-  try {
-    session = JSON.parse(sessionStorage.getItem(sessionKey));
-  } catch {
-    session = null;
+  document.getElementById('restore-retry').hidden = true;
+  let saved = readPreference(sessionKey);
+  if (!saved) {
+    try { saved = sessionStorage.getItem(sessionKey); } catch {}
   }
+  try { session = JSON.parse(saved); }
+  catch { session = null; }
   if (!session?.accessToken || !(Date.parse(session.expiresAt) > Date.now())) {
     session = null;
-    sessionStorage.removeItem(sessionKey);
+    clearSavedSession();
     showScreen('splash');
     return;
   }
 
-  if (await loadProfile(session)) showScreen('home');
-  else if (session) showScreen('login');
+  savePreference(sessionKey, JSON.stringify(session));
+  try { sessionStorage.removeItem(sessionKey); } catch {}
+  const activeSession = session;
+  if (await loadProfile(activeSession)) {
+    showScreen('home');
+  } else if (session === activeSession) {
+    showScreen('splash');
+    document.getElementById('restore-retry').hidden = false;
+  }
 }
+
+window.addEventListener('storage', event => {
+  if (event.key !== sessionKey && event.key !== null) return;
+  if (!readPreference(sessionKey)) logout();
+  else restoreSession();
+});
+document.getElementById('restore-retry').addEventListener('click', restoreSession);
 
 document.querySelectorAll('[data-screen]').forEach(button => {
   button.addEventListener('click', () => {
@@ -680,15 +758,23 @@ document.querySelectorAll('[data-screen]').forEach(button => {
     if (screen === 'profile') loadProfile(session);
   });
 });
+function runCatalogSearch() {
+  const q = document.getElementById('catalog-query').value.trim();
+  if (q) return showSearchResults({ q, city: selectedCity });
+  return showCategories();
+}
+
 searchForm.addEventListener('submit', event => {
   event.preventDefault();
-  const fields = new FormData(searchForm);
-  const filters = { q: fields.get('q').trim(), city: fields.get('city').trim() };
-  if (filters.q || filters.city) return showSearchResults(filters);
-  return showCategories();
+  return runCatalogSearch();
+});
+document.getElementById('catalog-city').addEventListener('change', event => {
+  selectedCity = event.currentTarget.value;
+  savePreference(cityPreferenceKey, selectedCity);
+  return runCatalogSearch();
 });
 document.getElementById('catalog-search-reset').addEventListener('click', () => {
-  searchForm.reset();
+  document.getElementById('catalog-query').value = '';
   return showCategories();
 });
 document.getElementById('favorites-open').addEventListener('click', () => showFavorites());

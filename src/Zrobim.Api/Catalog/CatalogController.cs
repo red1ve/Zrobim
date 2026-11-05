@@ -13,12 +13,20 @@ public class CatalogController(ZrobimDbContext db) : ControllerBase
     private IQueryable<Service> VisibleServices => db.Services.VisibleInCatalog();
 
     [HttpGet("categories")]
-    public Task<List<CatalogCategory>> GetCategories(CancellationToken ct) =>
-        db.Categories
-            .Where(c => c.IsActive)
-            .OrderBy(c => c.Name)
-            .Select(c => new CatalogCategory(c.Id, c.Name))
+    public Task<List<CatalogCategory>> GetCategories(CancellationToken ct,
+        [FromQuery, MaxLength(100)] string? city = null)
+    {
+        var services = VisibleServices.InCity(city);
+        var categories = db.Categories.Where(c => c.IsActive);
+        if (!string.IsNullOrWhiteSpace(city))
+            categories = categories.Where(c => services.Any(s => s.CategoryId == c.Id));
+
+        return categories.OrderBy(c => c.Name)
+            .Select(c => new CatalogCategory(c.Id, c.Name,
+                services.Where(s => s.CategoryId == c.Id).Select(s => s.MasterId).Distinct().Count(),
+                services.Count(s => s.CategoryId == c.Id)))
             .ToListAsync(ct);
+    }
 
     [HttpGet("cities")]
     public Task<List<string>> GetCities(CancellationToken ct) =>
@@ -37,16 +45,11 @@ public class CatalogController(ZrobimDbContext db) : ControllerBase
         [FromQuery, Range(1, 1000)] int page = 1)
     {
         const int pageSize = 20;
-        var services = VisibleServices;
-        if (!string.IsNullOrWhiteSpace(city))
-        {
-            var cityName = EscapeSearchPattern(city.Trim());
-            services = services.Where(s => s.Master.City != null && EF.Functions.ILike(s.Master.City.Trim(), cityName, "!"));
-        }
+        var services = VisibleServices.InCity(city);
 
         foreach (var term in (q ?? "").Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
         {
-            var pattern = "%" + EscapeSearchPattern(term) + "%";
+            var pattern = "%" + ServiceQueries.EscapeSearchPattern(term) + "%";
             services = services.Where(s => EF.Functions.ILike(
                 s.Name + " " + s.Category.Name + " " + s.Master.User.FirstName + " " + (s.Master.User.LastName ?? ""),
                 pattern, "!"));
@@ -68,13 +71,11 @@ public class CatalogController(ZrobimDbContext db) : ControllerBase
     }
 
 
-    private static string EscapeSearchPattern(string value) =>
-        value.Replace("!", "!!").Replace("%", "!%").Replace("_", "!_");
-
     [HttpGet("categories/{categoryId:guid}/masters")]
-    public Task<List<CatalogMaster>> GetMasters(Guid categoryId, CancellationToken ct)
+    public Task<List<CatalogMaster>> GetMasters(Guid categoryId, CancellationToken ct,
+        [FromQuery, MaxLength(100)] string? city = null)
     {
-        var services = VisibleServices.Where(s => s.CategoryId == categoryId);
+        var services = VisibleServices.InCity(city).Where(s => s.CategoryId == categoryId);
 
         return db.Masters
             .Where(m => services.Any(s => s.MasterId == m.Id))
@@ -120,7 +121,7 @@ public class CatalogController(ZrobimDbContext db) : ControllerBase
     }
 }
 
-public sealed record CatalogCategory(Guid Id, string Name);
+public sealed record CatalogCategory(Guid Id, string Name, int MasterCount = 0, int ServiceCount = 0);
 
 public sealed record CatalogMaster(Guid Id, string FirstName, string? LastName,
     string? City, string? Description, decimal Rating, int ReviewsCount, string? PublicAddress);
